@@ -7,11 +7,11 @@ routes.use((req, res, next) => {
   return next();
 });
 
-function idNotExist(req, res, next) {
+function projectExists(req, res, next) {
   const { id } = req.params;
-  if (!id) {
-    res.status(400).json({ error: "Parâmetros inválidos" });
-  }
+
+  if (!model.findById(id))
+    return res.status(400).json({ error: "Projeto não existe" });
 
   return next();
 }
@@ -19,7 +19,7 @@ function idNotExist(req, res, next) {
 function titleNotExist(req, res, next) {
   const { title } = req.body;
   if (!title) {
-    res.status(400).json({ error: "Parâmetros inválidos" });
+    return res.status(400).json({ error: "Parâmetros inválidos" });
   }
 
   return next();
@@ -29,64 +29,51 @@ routes.get("/projects", (req, res) => {
   res.json(model.getData());
 });
 
-routes.post("/projects", (req, res) => {
+routes.post("/projects", titleNotExist, (req, res) => {
   const { id, title } = req.body;
 
-  if (!id || !title) {
-    res.status(400).json({ error: "Parâmetros inválidos" });
+  if (!id) {
+    return res.status(400).json({ error: "Parâmetros inválidos" });
   }
 
   if (model.findById(id)) {
-    res.status(400).json({ error: "Projeto já existente" });
+    return res.status(400).json({ error: "Projeto já existente" });
   }
-
   model.getData().push({ id, title, tasks: [] });
   model.setData(model.getData());
 
-  res.status(201).send();
+  return res.status(201).send();
 });
 
-routes.post("/projects/:id/tasks", idNotExist, titleNotExist, (req, res) => {
+routes.post("/projects/:id/tasks", titleNotExist, projectExists, (req, res) => {
   const { id } = req.params;
   const { title } = req.body;
 
-  const objProjeto = model.findById(id);
-
-  if (objProjeto) {
-    objProjeto.tasks.push(title);
-    model.setData(model.getData());
-    res.status(201).send();
-  }
-
-  res.status(400).json({ error: "Parâmetros inválidos" });
+  model.findById(id).tasks.push(title);
+  model.setData(model.getData());
+  return res.status(201).send();
 });
 
-routes.put("/projects/:id", idNotExist, titleNotExist, (req, res) => {
-  const { id } = req.params;
-  const { title } = req.body;
+routes.put(
+  "/projects/:id",
 
-  const objProjeto = model.findById(id);
-  if (objProjeto) {
-    objProjeto.title = title;
+  titleNotExist,
+  projectExists,
+  (req, res) => {
+    const { id } = req.params;
+    const { title } = req.body;
+
+    model.findById(id).title = title;
     model.setData(model.getData());
 
-    res.status(200).send();
+    return res.status(200).send();
   }
+);
 
-  res.status(400).json({ error: "Parâmetros inválidos" });
-});
-
-routes.delete("/projects/:id", idNotExist, (req, res) => {
+routes.delete("/projects/:id", projectExists, (req, res) => {
   const { id } = req.params;
-
-  const objProjeto = model.findById(id);
-
-  if (objProjeto) {
-    model.deleteById(id);
-    res.status(200).send();
-  }
-
-  res.status(400).json({ error: "Parâmetros inválidos" });
+  model.deleteById(id);
+  return res.status(200).send();
 });
 
 module.exports = routes;
